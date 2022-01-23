@@ -1,0 +1,19 @@
+"Salesman1 = {""Name"":""Alexander Yakovlev"",""Age"":""23"",""Salary"":""80 000"",""History"":""Salesman - 10.01.21 - now""}
+Salesman2 = {""Name"":""Pavel Voitsev"",""Age"":""22"",""Salary"":""70 000"",""History"":""Salesman - 15.05.21 - now""}
+SalesDirector = {""Name"":""Artur Pirozhkov"",""Age"":""31"",""Salary"":""140 000"",""History"":""Salesman - 18.04.18 - 24.11.20, Sales Director - 24.11.20 - now""}
+MarketingDirector = {""Name"":""Anatoliy Hadukin"",""Age"":""27"",""Salary"":""120 000"",""History"":""Marketing Director - 08.02.20 - now""}
+GeneralDirector = {""Name"":""Yuri Soloviev"",""Age"":""38"",""Salary"":""150 000"",""History"":""Salesman - 18.04.14 - 24.11.16, Sales Director - 24.11.16 - 30.12.19, General Director - 30.12.19 - now""}
+
+
+MarketingDepartment=list()
+MarketingDepartment.append(MarketingDirector)
+SalesDepartment=list()
+SalesDepartment.append(SalesDirector)
+SalesDepartment.append(Salesman1)
+SalesDepartment.append(Salesman2)
+Company=list()
+Company.append(GeneralDirector)
+Company.append(MarketingDepartment)
+Company.append(SalesDepartment)
+
+print(Company)"
