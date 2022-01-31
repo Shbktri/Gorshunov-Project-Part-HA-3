@@ -4,7 +4,8 @@ import telebot
 from telebot import types
 from peewee import *
 from datetime import datetime
-import time,threading, schedule
+import threading, schedule
+import time as vremya
 
 
 bot = telebot.TeleBot('5245796353:AAHKpjAaha_JY9UDNLgSKjWSShLjlKaTf8I');
@@ -252,4 +253,4 @@ if __name__ == '__main__': #for polling and scheduling
     threading.Thread(target=bot.infinity_polling, name='bot_infinity_polling', daemon=True).start()
     while True:
         schedule.run_pending()
-        time.sleep(1)
+        vremya.sleep(1)
