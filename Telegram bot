@@ -175,9 +175,11 @@ def notif() -> None: # reminding twice about an event
             if (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()>=3599 and (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()<=3600 and plan.flag<2:
                 bot.send_message(plan.uid, plan.event+' starts in an hour')
                 plan.flag=2
+                plan.save()
             if (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()>=86399 and (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()<=86400 and plan.flag<1:
                 bot.send_message(plan.uid, plan.event+' starts in an day')
                 plan.flag=1
+                plan.save()
     
 def events(message): #checks upcoming events
     lst = []
@@ -209,8 +211,8 @@ def get_number(message): #stores the modified entity and creates stylish keyboar
                 keyboard.add('Remove')
                 bot.send_message(cid,'Chosen: '+ plan.event + ' on '+ plan.date + ' at ' + plan.time+'\nType /modify to choose another event if you need', reply_markup=keyboard)
 
-    if b == 0: 
-        bot.send_message(message.from_user.id, '''Couldn't find the number :( \nTry again with /modify''') 
+            elif b == 0: 
+                bot.send_message(message.from_user.id, '''Couldn't find the number :( \nTry again with /modify''') 
 
 def notstat(boolean): #just to make things shorter
     if boolean==True:
