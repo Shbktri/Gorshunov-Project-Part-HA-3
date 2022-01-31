@@ -1,3 +1,12 @@
+import numpy as np
+import math
+import telebot
+from telebot import types
+from peewee import *
+from datetime import datetime
+import time,threading, schedule
+
+
 bot = telebot.TeleBot('5245796353:AAHKpjAaha_JY9UDNLgSKjWSShLjlKaTf8I');
 
 db = SqliteDatabase('plans.db') #чудовищно и беспощадно создадим под все эвенты всего одну таблицу
