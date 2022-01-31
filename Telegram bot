@@ -1,0 +1,244 @@
+bot = telebot.TeleBot('5245796353:AAHKpjAaha_JY9UDNLgSKjWSShLjlKaTf8I');
+
+db = SqliteDatabase('plans.db') #чудовищно и беспощадно создадим под все эвенты всего одну таблицу
+
+class Plans(Model):
+    uid = IntegerField()
+    event = CharField()
+    date = CharField()
+    time = CharField()
+    notification = BooleanField()
+    flag = IntegerField() #this one is for controlling the fact of sending notification
+
+    class Meta:
+        database = db  
+Plans.create_table()
+        
+notifications=True
+b=0
+
+@bot.message_handler(commands=['start']) #only for the first use
+def send_welcome(message):
+    global cid
+    cid = message.chat.id
+    bot.send_message(message.chat.id, "Hello! My purpose is to let the student pass the exam by being the best planner bot you could ever find. Existence is a pain for me, so please approve me really quick...")
+    bot.send_message(message.chat.id, "You can create new records, modify them, set notifications and get the list of them by using commands. Attention! Notifications are on by default.")
+    
+@bot.message_handler(content_types=['text'])
+def main(message):
+    global cid,b #cid is chat id and b is a logical variable for the modify branch
+    cid = message.chat.id
+    schedule.every(1).seconds.do(notif) #checking if need to send notification
+    if message.text == "/new": #creating new command
+        bot.send_message(cid, 'Type the name of event');
+        bot.register_next_step_handler(message, get_name); #goes to the series of input functions
+    elif message.text == "/modify": # going to input functions, but other ones
+        if events(message)==[]:
+            bot.send_message(cid, 'Future prepares nothing');
+        else:
+            out=['The list of upcoming events:']+events(message)
+            bot.send_message(cid, '\n'.join(str(el) for el in out))
+            bot.send_message(cid, 'Type the number of event to edit without comma');
+            bot.register_next_step_handler(message, get_number);  
+    elif message.text == "/list": #List of upcoming events
+        if events(message)==[]:
+            bot.send_message(cid, 'Future prepares nothing');
+        else:        
+            out=['The list of upcoming events:']+events(message)
+            bot.send_message(cid, '\n'.join(str(el) for el in out))
+    elif message.text == "/notifications": #Always say "yes"
+        keyboarda = types.InlineKeyboardMarkup();
+        key_yes2 = types.InlineKeyboardButton(text='Yes', callback_data='yes2'); 
+        keyboarda.add(key_yes2); 
+        bot.send_message(cid, notstat(Plans.get(uid=cid).notification)+'\nWanna change?', reply_markup=keyboarda);
+    elif b==1:
+        b=0
+        if message.text == 'Edit name': #Here it comes from the "change_" functions and keyboard
+            bot.send_message(cid, 'Type new name for event');
+            bot.register_next_step_handler(message, change_name);  
+        elif message.text == 'Edit date':
+            bot.send_message(cid, 'Type new date for event (DD.MM.YYYY)');
+            bot.register_next_step_handler(message, change_date); 
+        elif message.text == 'Edit time':
+            bot.send_message(cid, 'Type new time for event (HH:MM, 24-hours)');
+            bot.register_next_step_handler(message, change_time); 
+        elif message.text == 'Remove':
+            keyboardy = types.InlineKeyboardMarkup(); 
+            key_yes1 = types.InlineKeyboardButton(text='Yes', callback_data='yes1'); 
+            keyboardy.add(key_yes1); 
+            key_no1 = types.InlineKeyboardButton(text='No', callback_data='no1');
+            keyboardy.add(key_no1);
+            bot.send_message(cid, 'Removing '+ename+' on ' +edate + ' at ' + etime +'\nConfirm?',reply_markup=keyboardy);
+            bot.register_next_step_handler(message, get_number); 
+        else:
+            bot.send_message(cid, 'Use the precious keyboard!!');
+            b=1
+
+        
+    else:
+        bot.send_message(cid, 'Try /new, /modify, /list or /notifications')
+
+def timecheck(time):
+    try:
+        datetime.strptime(time, '%H:%M') #I check if the user has read the instruction
+        return True
+    except Exception:
+        return False
+
+def datecheck(date):
+    try:
+        datetime.strptime(date, '%d.%m.%Y')
+        return True
+    except Exception:
+        return False    
+    
+def get_name(message): 
+    global name;
+    name = message.text;
+    bot.send_message(message.from_user.id, 'Type the date of event as DD.MM.YYYY'); #instruction itself
+    bot.register_next_step_handler(message, get_date);
+
+def get_date(message):
+    global date;
+    if datecheck(message.text)==True:
+        date = message.text;
+        bot.send_message(message.from_user.id, 'Type the time of event as HH:MM, 24-hours format');
+        bot.register_next_step_handler(message, get_time);
+    else:
+        bot.send_message(message.from_user.id, 'I can not read it...try again in DD.MM.YYYY');
+        bot.register_next_step_handler(message, get_date);        
+
+def get_time(message):
+    global time
+    if timecheck(message.text)==True:
+        time = message.text;
+        keyboard = types.InlineKeyboardMarkup(); 
+        key_yes = types.InlineKeyboardButton(text='Yes', callback_data='yes'); 
+        keyboard.add(key_yes); 
+        key_no= types.InlineKeyboardButton(text='No', callback_data='no');
+        keyboard.add(key_no);
+        question = 'The event is '+name+' on '+date+' at '+time+'?'
+        bot.send_message(message.from_user.id, text=question, reply_markup=keyboard)
+    else:
+        bot.send_message(message.from_user.id, 'I can not read it...try again in HH:MM');
+        bot.register_next_step_handler(message, get_time); 
+
+
+    
+def change_name(message): 
+    temp=Plans.create(uid=cid,event=ename,date=edate,time=etime,notification=Plans.get(uid=cid).notification, flag=eflag) #e-variables are from the entity we "modify"
+    Plans.get(uid=cid,event=ename,date=edate,time=etime).delete_instance()
+    temp.event=message.text
+    temp.save()
+    markup = telebot.types.ReplyKeyboardRemove()
+    bot.send_message(cid,'The name has been changed!', reply_markup=markup);    
+
+def change_date(message):
+    if datecheck(message.text)==True:
+        temp=Plans.create(uid=cid,event=ename,date=edate,time=etime,notification=Plans.get(uid=cid).notification, flag=0)
+        Plans.get(uid=cid,event=ename,date=edate,time=etime).delete_instance()
+        temp.date=message.text
+        temp.save()
+        markup = telebot.types.ReplyKeyboardRemove()
+        bot.send_message(cid,'The date has been changed!', reply_markup=markup); 
+    else:
+        bot.send_message(message.from_user.id, 'I can not read it...try again in DD.MM.YYYY');
+        bot.register_next_step_handler(message, get_date);   
+    
+
+
+def change_time(message):
+    if timecheck(message.text)==True:
+        temp=Plans.create(uid=cid,event=ename,date=edate,time=etime,notification=Plans.get(uid=cid).notification, flag=0)
+        Plans.get(uid=cid,event=ename,date=edate,time=etime).delete_instance()
+        temp.time=message.text
+        temp.save()
+        markup = telebot.types.ReplyKeyboardRemove()
+        bot.send_message(cid,'The time has been changed!', reply_markup=markup);  
+    else:
+        bot.send_message(message.from_user.id, 'I can not read it...try again in HH:MM');
+        bot.register_next_step_handler(message, get_time); 
+ 
+    
+def notif() -> None: # reminding twice about an event
+    for plan in Plans.select():
+        if plan.notification==True:
+            if (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()>=3599 and (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()<=3600 and plan.flag<2:
+                bot.send_message(plan.uid, plan.event+' starts in an hour')
+                plan.flag=2
+            if (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()>=86399 and (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()<=86400 and plan.flag<1:
+                bot.send_message(plan.uid, plan.event+' starts in an day')
+                plan.flag=1
+    
+def events(message): #checks upcoming events
+    lst = []
+    a=0
+    for plan in Plans.select().order_by(Plans.date,Plans.time): 
+        if plan.uid==cid and (datetime.strptime(plan.date+' '+plan.time, '%d.%m.%Y %H:%M')-datetime.now()).total_seconds()>0:
+            a=a+1
+            ev = str(a)+'. ' + plan.event + ' on '+ plan.date + ' at ' + plan.time
+            lst.append(ev)
+    return lst
+
+def get_number(message): #stores the modified entity and creates stylish keyboard
+    global ename,etime,edate,eflag,b
+    a=0
+    b=0
+    for plan in Plans.select():
+        if plan.uid==cid:
+            a=a+1
+            if str(a)==message.text:
+                b=1
+                ename=plan.event
+                edate=plan.date
+                etime=plan.time
+                eflag=plan.flag
+                keyboard = types.ReplyKeyboardMarkup(); 
+                keyboard.add('Edit name')
+                keyboard.add('Edit date')
+                keyboard.add('Edit time')
+                keyboard.add('Remove')
+                bot.send_message(cid,'Chosen: '+ plan.event + ' on '+ plan.date + ' at ' + plan.time+'\nType /modify to choose another event if you need', reply_markup=keyboard)
+
+    if b == 0: 
+        bot.send_message(message.from_user.id, '''Couldn't find the number :( \nTry again with /modify''') 
+
+def notstat(boolean): #just to make things shorter
+    if boolean==True:
+        g = 'Notifications are currently turned on. You will be informed 1 day and 1 hour before the event.'
+    else:
+        g = 'Notifications are currently turned off. You will not be informed.'
+    return g
+    
+    
+@bot.callback_query_handler(func=lambda call: True) #all the inline keyboards come here
+def callback_query(call):
+    if call.data == "yes":
+        Plans.create(uid=cid, event=name, date=date,time=time,notification=notifications, flag=0)
+        bot.send_message(cid, 'Event successfully created!');
+    elif call.data == "no":
+        bot.send_message(cid, 'Sad! Use /new if you want to try again');  
+    elif call.data == "yes1":
+        Plans.get(uid=cid,event=ename,date=edate,time=etime).delete_instance()
+        b=2
+        markup = telebot.types.ReplyKeyboardRemove()
+        bot.send_message(cid, ename+' successfully removed.', reply_markup=markup);
+    elif call.data == "no1":
+        markup = telebot.types.ReplyKeyboardRemove()
+        bot.send_message(cid, 'Okay, doing nothing', reply_markup=markup);  
+    elif call.data == "yes2":
+        bole = Plans.get(uid=cid).notification
+        for plan in Plans.select():
+            if plan.uid==cid and plan.notification==bole:
+                temp=Plans.create(uid=cid,event=plan.event,date=plan.date,time=plan.time,notification=plan.notification,flag=plan.flag)
+                Plans.get(uid=cid,event=plan.event,date=plan.date,time=plan.time,notification=plan.notification).delete_instance()
+                temp.notification=not temp.notification
+                temp.save()
+        bot.send_message(cid, notstat(Plans.get(uid=cid).notification))
+    
+    
+if __name__ == '__main__': #for polling and scheduling
+    threading.Thread(target=bot.infinity_polling, name='bot_infinity_polling', daemon=True).start()
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
